@@ -1,0 +1,24 @@
+version: 2
+updates:
+  # npm dependencies, including @stellar/stellar-sdk, React and Vite — grouped so
+  # a routine bump is one PR. Dev and prod split so a tooling bump is easy to
+  # tell apart from a runtime one.
+  - package-ecosystem: npm
+    directory: "/"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      production:
+        dependency-type: production
+      development:
+        dependency-type: development
+
+  # Keep the Actions in the CI and Pages workflows current.
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+    groups:
+      actions:
+        patterns: ["*"]

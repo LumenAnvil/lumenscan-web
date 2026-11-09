@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { InterfaceView } from "./InterfaceView";
 import {
@@ -8,10 +8,14 @@ import {
   specFromWasm,
 } from "./inspect";
 import { buildInterface, type Interface } from "./model";
+import { buildShareQuery, parseShareParams } from "./share";
 
 interface Result {
   source: string;
   iface: Interface;
+  // Present only for network inspections, which can be linked; a file
+  // inspection has no shareable URL because the bytes are local.
+  shareQuery?: string;
 }
 
 type Status =
@@ -25,6 +29,7 @@ export function App() {
   const [networkId, setNetworkId] = useState(NETWORKS[0].id);
   const [rpcUrl, setRpcUrl] = useState(NETWORKS[0].rpcUrl);
   const [status, setStatus] = useState<Status>({ kind: "idle" });
+  const [copied, setCopied] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
 
   const network = NETWORKS.find((n) => n.id === networkId) ?? NETWORKS[0];
@@ -34,6 +39,35 @@ export function App() {
     const n = NETWORKS.find((x) => x.id === id);
     if (n) setRpcUrl(n.rpcUrl);
   }
+
+  // Fetch and decode a contract from a given network, then reflect the
+  // inspection in the URL so it can be bookmarked or shared. The share link
+  // uses the network's default RPC, not any custom RPC typed into the form.
+  const runNetworkInspection = useCallback(
+    async (id: string, net: (typeof NETWORKS)[number], endpoint: string) => {
+      setStatus({ kind: "loading" });
+      setCopied(false);
+      try {
+        const entries = await fetchContractSpec(id, {
+          rpcUrl: endpoint,
+          passphrase: net.passphrase,
+        });
+        const shareQuery = buildShareQuery({ contractId: id, networkId: net.id });
+        window.history.replaceState(null, "", shareQuery);
+        setStatus({
+          kind: "done",
+          result: {
+            source: `contract ${id}`,
+            iface: buildInterface(entries),
+            shareQuery,
+          },
+        });
+      } catch (err) {
+        setStatus({ kind: "error", message: describe(err) });
+      }
+    },
+    [],
+  );
 
   async function inspectNetwork(event: React.FormEvent) {
     event.preventDefault();
@@ -46,19 +80,34 @@ export function App() {
       });
       return;
     }
+    await runNetworkInspection(id, network, rpcUrl);
+  }
 
-    setStatus({ kind: "loading" });
+  // On first load, inspect whatever a shared link points at: pre-fill the form
+  // from ?contract=…&network=… and, if the contract ID is valid, run it.
+  useEffect(() => {
+    const shared = parseShareParams(window.location.search);
+    if (shared.contractId) setContractId(shared.contractId);
+    const net = shared.networkId
+      ? NETWORKS.find((n) => n.id === shared.networkId)
+      : undefined;
+    if (net) selectNetwork(net.id);
+
+    if (shared.contractId && isValidContractId(shared.contractId)) {
+      const target = net ?? network;
+      void runNetworkInspection(shared.contractId, target, target.rpcUrl);
+    }
+    // Runs once, on mount, to honour the incoming link.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  async function copyShareLink() {
     try {
-      const entries = await fetchContractSpec(id, {
-        rpcUrl,
-        passphrase: network.passphrase,
-      });
-      setStatus({
-        kind: "done",
-        result: { source: `contract ${id}`, iface: buildInterface(entries) },
-      });
-    } catch (err) {
-      setStatus({ kind: "error", message: describe(err) });
+      await navigator.clipboard.writeText(window.location.href);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // Clipboard access can be denied; the URL bar still holds the link.
     }
   }
 
@@ -168,6 +217,16 @@ export function App() {
           <>
             <p className="source">
               <code>{status.result.source}</code>
+              {status.result.shareQuery && (
+                <button
+                  type="button"
+                  className="share"
+                  onClick={copyShareLink}
+                  title="Copy a link to this inspection"
+                >
+                  {copied ? "Link copied" : "Copy link"}
+                </button>
+              )}
             </p>
             <InterfaceView iface={status.result.iface} />
           </>

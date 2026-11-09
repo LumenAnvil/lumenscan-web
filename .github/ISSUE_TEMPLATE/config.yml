@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Security report
+    url: https://github.com/LumenAnvil/lumenscan-web/security/advisories/new
+    about: Please report security issues privately, not as a public issue.
+  - name: Lumenscan CLI
+    url: https://github.com/LumenAnvil/lumenscan
+    about: For the Rust command-line inspector that shares this decoder.

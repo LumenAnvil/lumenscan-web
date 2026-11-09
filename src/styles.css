@@ -167,6 +167,19 @@ main {
 .source {
   color: var(--muted);
   margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+button.share {
+  background: transparent;
+  color: var(--accent);
+  border: 1px solid var(--border);
+  font-weight: 500;
+  font-size: 0.8rem;
+  padding: 4px 12px;
 }
 
 .error {

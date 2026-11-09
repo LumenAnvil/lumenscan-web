@@ -79,7 +79,14 @@ A deliberately small core, with room to grow:
 
 - **Contract metadata.** The `contractmetav0` section (SDK version, protocol) is
   not shown yet; the CLI's `meta` view is the reference.
-- **A shareable URL.** Encode the contract ID and network in the query string so
-  an inspection can be linked.
 - **Bundle size.** The SDK is large; code-splitting the network path from the
   file path would cut the initial download.
+
+### Shareable links
+
+A network inspection is captured in the URL as
+`?contract=<id>&network=<testnet|mainnet>`, and the **Copy link** button copies
+it. Opening such a link pre-fills the form and inspects automatically, so an
+inspection can be bookmarked or shared. File inspections stay local and have no
+link. The parse/build round trip lives in [`src/share.ts`](src/share.ts) and is
+unit-tested.
